@@ -1,6 +1,6 @@
 import { response, Router } from "express";
 import { ProfileService } from "./profile.service";
-import { Profile } from "../types/Profile";
+import { Profile, authData } from "../types/Profile";
 import { v4 } from "uuid";
 import Hashes from "jshashes";
 
@@ -9,38 +9,70 @@ const profileService = new ProfileService();
 
 router.post('/reg', async (request,response) => {
 
-    try {
-        const encoder = new Hashes.SHA256;
+    const encoder = new Hashes.SHA256;
 
-        const newProfile:Profile = {
-            id: v4(),
-            name: request.body.name,
-            password: encoder.hex(request.body.password),
-            email: request.body.email,
-            type: 'user'
-        };
+    const newProfile:Profile = {
+        id: v4(),
+        name: request.body.name,
+        password: encoder.hex(request.body.password),
+        email: request.body.email,
+        type: 'user'
+    };
 
-        profileService.createProfile(newProfile);
+    const APIKey:string = request.body.APIKey;
+
+    const result = await profileService.createProfile(newProfile, APIKey);
+
+    if (result.success) {
         response.status(200).send("You have been succesfully registred!");
-    }catch(err) {
-        response.status(500).send("Oh no! Something went wrong :(");
+    }else {
+        response.status(500).send(result.error);
     }
 });
 
 router.post('/auth', async (request, response) => {
-    try {
-        const encoder = new Hashes.SHA256;
-        const isProfileRegistred:boolean | null = await profileService.authorization({email: request.body.email, password: encoder.hex(request.body.password)});
 
-        if (isProfileRegistred) {
-            response.status(200).send("You have been succesfully authorized!")
-        }else if (isProfileRegistred == false) {
-            response.status(400).send("Try to check the input data");
-        }else {
-            throw new Error();
-        }
-    }catch (err) {
-        response.status(500).send("Oh no! Something went wrong!");
+    const encoder = new Hashes.SHA256;
+
+    const authData:authData = {
+        email:request.body.email,
+        password: encoder.hex(request.body.password)
+    }
+
+    const APIKey:string = request.body.APIKey;
+
+    const result = await profileService.authorization(authData, APIKey);
+
+    if (result.success) {
+        response.status(200).send("You have been succesfully authorized!")
+    }else if (result.success == false) {
+        response.status(400).send(result.error);
+    }
+});
+
+router.get('/info/all', async (request, response) => {
+
+    const APIKey = request.body.APIKey;
+
+    const result = await profileService.getProfiles(APIKey);
+
+    if (result.success) {
+        response.status(200).send(JSON.stringify(result.data));
+    }else {
+        response.status(400).send(result.error);
+    }
+});
+
+router.get('/info/:userId', async (request,response) => {
+
+    const APIKey = request.body.APIKey;
+
+    const result = await profileService.getProfileInfo(request.params.userId, APIKey);
+
+    if (result.success) {
+        response.status(200).send(JSON.stringify(result.data));
+    }else {
+        response.status(400).send(result.error);
     }
 });
 

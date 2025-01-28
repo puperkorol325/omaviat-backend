@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <form id="form">
+        <label for="name" method="POST">Имя</label>
+        <input type="text" id="name" name="name" required>
+        <label for="email">Электронная почта</label>
+        <input type="email" id="email" name="email">
+        <label for="password">Пароль</label>
+        <input type="password" id="password" name="password">
+        <button type="submit">Подтвердить</button>
+    </form>
+
+    <script>
+        const form = document.getElementById('form');
+
+        form.onsubmit = function (event) {
+            event.preventDefault();
+
+            var formData = new FormData(form);
+            var object = {};
+            var xhr = new XMLHttpRequest();
+
+            xhr.open("POST", 'http://localhost:5000/api/profile/reg');
+            xhr.setRequestHeader('Content-type', 'application/json')
+            xhr.send(JSON.stringify({ ...Object.fromEntries(formData), APIKey: "QzId4ZH9CSYGXg22eoBFRWVJFFpsFLwyFI4XTvRa39MfSjmisDas3iYI0qMmwCLiokr1lXjLpzy1rNjhHFVEvlqMHFyuPYgkhJCCdqS8UetB4qdfdRzvLZVL5j2rY5Ud"}));
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState == XMLHttpRequest.DONE) {
+                    form.reset();
+                }
+            };
+        }
+    </script>
+</body>
+</html>
