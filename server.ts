@@ -4,14 +4,31 @@ import dotenv from "dotenv";
 import cors from 'cors';
 import helmet from "helmet";
 import { videoRouter } from "./src/video/video.controller";
+import rateLimit from "express-rate-limit";
+import { Profile } from "./src/types/Profile";
+import { Video } from "./src/types/Video";
+import { Comment } from "./src/types/Comment";
 
 dotenv.config();
 
 const app = express();
 
+declare global {
+
+    interface Array<T> {
+      INSERT_DATA: (data: any) => any[];
+    }
+
+}
+
 async function main() {
 
   app.use(helmet());
+
+  app.use(rateLimit({
+    windowMs: 10*60*1000,
+    max: 100
+  }));
 
   app.use(cors({
     origin: "http://127.0.0.1:5500"

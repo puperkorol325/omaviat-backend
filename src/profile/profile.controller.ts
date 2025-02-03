@@ -1,13 +1,14 @@
-import { response, Router } from "express";
+import { Request, Response, Router } from "express";
 import { ProfileService } from "./profile.service";
-import { Profile, authData } from "../types/Profile";
+import { Profile, AuthData } from "../types/Profile";
 import { v4 } from "uuid";
 import Hashes from "jshashes";
+
 
 const router = Router();
 const profileService = new ProfileService();
 
-router.post('/reg', async (request,response) => {
+router.post('/reg', async (request: Request,response: Response) => {
 
     const encoder = new Hashes.SHA256;
 
@@ -16,32 +17,30 @@ router.post('/reg', async (request,response) => {
         name: request.body.name,
         password: encoder.hex(request.body.password),
         email: request.body.email,
-        type: 'user'
+        type: 'user',
+        ratedVideos: []
     };
 
-    const APIKey:string = request.body.APIKey;
-
-    const result = await profileService.createProfile(newProfile, APIKey);
+    const result = await profileService.createProfile(newProfile);
 
     if (result.success) {
-        response.status(200).send("You have been succesfully registred!");
+        response.status(200).send(JSON.stringify(result));
     }else {
         response.status(500).send(result.error);
     }
 });
 
-router.post('/auth', async (request, response) => {
+router.post('/auth', async (request: Request, response: Response) => {
 
     const encoder = new Hashes.SHA256;
 
-    const authData:authData = {
-        email:request.body.email,
-        password: encoder.hex(request.body.password)
+    const authData:AuthData = {
+        email: request.body.email,
+        password: encoder.hex(request.body.password),
+        APIKey: request.body.APIKey
     }
 
-    const APIKey:string = request.body.APIKey;
-
-    const result = await profileService.authorization(authData, APIKey);
+    const result = await profileService.authorization(authData);
 
     if (result.success) {
         response.status(200).send("You have been succesfully authorized!")
@@ -50,7 +49,7 @@ router.post('/auth', async (request, response) => {
     }
 });
 
-router.get('/info/all', async (request, response) => {
+router.post('/info/all', async (request: Request, response: Response) => {
 
     const APIKey = request.body.APIKey;
 
@@ -63,7 +62,7 @@ router.get('/info/all', async (request, response) => {
     }
 });
 
-router.get('/info/:userId', async (request,response) => {
+router.get('/info/:userId', async (request: Request,response: Response) => {
 
     const APIKey = request.body.APIKey;
 

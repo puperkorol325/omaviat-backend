@@ -4,15 +4,17 @@ export type Profile = {
   password: string;
   email: string;
   type: "user" | "mod" | "admin";
+  ratedVideos: {id: string, rating: 'like' | 'dislike'}[];
 };
 
-export type authData = {
-  email: string,
-  password: string
+export type AuthData = {
+  email?: string,
+  password?: string,
+  APIKey?: string
 };
 
 export type ProfileInfo = {
-  id: string;
+  id?: string;
   name: string;
-  email: string;
+  email?: string;
 };

@@ -6,5 +6,5 @@ export type Video = {
     description: string,
     likes: number,
     dislikes: number,
-    comments: Comment[]
+    comments: Comment[],
 };

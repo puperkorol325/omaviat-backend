@@ -1,34 +1,54 @@
 import fs from 'fs/promises';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { authData, Profile, ProfileInfo } from "../types/Profile"
-import { error } from 'console';
+import { AuthData, Profile, ProfileInfo } from "../types/Profile"
+import Hashes from "jshashes";
+import keygenerator from "keygenerator";
+import { READ_API_KEYS } from "../DATA_METHODS/READ_API_KEYS";
+import { READ_PROFILES_DATA } from '../DATA_METHODS/READ_PROFILES_DATA';
+import { BINARY_SEARCH } from '../DATA_METHODS/BINARY_SEARCH';
+import '../DATA_METHODS/INSERT_DATA';
 
 export class ProfileService {
 
     private databasePath:string = path.join(path.dirname(fileURLToPath(import.meta.url)), 'profilesDB.json');
     private APIKeysPath:string = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../APIKeys.json');
+    private encoder = new Hashes.SHA256();
 
-    async createProfile(profile:Profile, APIKey:string): Promise<{ success: boolean; error?: string }> {
+    private deleteAPIKey(APIKey: string): void {
+
+        setTimeout(async () => {
+            let APIKeys:string[] = await READ_API_KEYS();
+            APIKeys = APIKeys.filter(item => item === APIKey ? null : item);
+
+            await fs.writeFile(this.APIKeysPath, JSON.stringify(APIKeys));
+        }, 259200000)
+    }
+
+    async createProfile(profile:Profile): Promise<{ success: boolean, APIKey?: string, profileID?: string, error?: string }> {
 
         try {
-            const APIKeys:string[] = JSON.parse(await fs.readFile(this.APIKeysPath, 'utf-8'))
 
-            if (!APIKeys.includes(APIKey)) {
-                throw new Error("Access denied");
-            }
-
-            if (!profile.email || !profile.id || !profile.name || !profile.password || !profile.type) {
+            if (!profile.email || !profile.id || !profile.name || !profile.password || !profile.type || !profile.ratedVideos) {
                 throw new Error("Some fields are not defined!");
             }
 
-            const fileContents:string = await fs.readFile(this.databasePath, 'utf-8');
-            const data:Profile[] = JSON.parse(fileContents);
+            const APIKeys:string[] = await READ_API_KEYS();
+            const APIKey:string = this.encoder.hex(Date.now() + keygenerator.number());
 
-            if (data.findIndex(item => item.email === profile.email) === -1) {
-                data.push(profile);
+            const data:Profile[] = await READ_PROFILES_DATA();
+
+            if (BINARY_SEARCH(data, profile.email, 'email') == -1) {
+
+                data.INSERT_DATA(profile);
+
+                APIKeys.push(APIKey);
+                this.deleteAPIKey(APIKey);
+
+                await fs.writeFile(this.APIKeysPath, JSON.stringify(APIKeys));
                 await fs.writeFile(this.databasePath, JSON.stringify(data));
-                return { success:true };
+
+                return { success:true, APIKey: APIKey, profileID: profile.id };
             }else {
                 return {success: false, error: "Email is already used!"}
             }
@@ -38,26 +58,36 @@ export class ProfileService {
         }
     }
 
-    async authorization(authData:authData, APIKey:string): Promise<{ success: boolean; error?: string }> {
+    async authorization(authData:AuthData): Promise<{ success: boolean, APIKey?: string, profileID?: string, error?: string }> {
 
         try {
-            const APIKeys:string[] = JSON.parse(await fs.readFile(this.APIKeysPath, 'utf-8'))
 
-            if (!APIKeys.includes(APIKey)) {
-                throw new Error("Access denied");
-            }
+            const APIKeys:string[] = await READ_API_KEYS();
 
-            if (!authData.email || !authData.password) {
-                throw new Error("Some fields are not defined!");
-            }
+            if (authData.APIKey) {
 
-            const fileContents:string = await fs.readFile(this.databasePath, 'utf-8');
-            const data:Profile[] = await JSON.parse(fileContents);
-
-            if (data.findIndex(item => item.email === authData.email && item.password === authData.password) != -1) {
-                return {success:true};
+                if (APIKeys.includes(authData.APIKey)) {
+                    return { success:true }
+                }else {
+                    throw new Error("You need to authorize");
+                }
+            
             }else {
-                return { success:false, error: "Invalid email or password."};
+
+                const data:Profile[] = await READ_PROFILES_DATA();
+                const profile: Profile | undefined = data.find(item => item.email === authData.email && item.password === authData.password);
+
+                const APIKey:string = this.encoder.hex(Date.now() + keygenerator.number());
+
+                if (profile) {
+                    APIKeys.push(APIKey);
+                    await fs.writeFile(this.APIKeysPath, JSON.stringify(APIKeys));
+                    this.deleteAPIKey(APIKey);
+
+                    return { success:true, APIKey: APIKey, profileID: profile.id };
+                }else {
+                    return { success:false, error: "Invalid email or password."};
+                }
             }
 
         }catch (err) {
@@ -65,16 +95,16 @@ export class ProfileService {
         }
     }
 
-    async getProfiles(APIKey:string): Promise<{success: boolean; data?: Profile[], error?:string}> {
+    async getProfiles(APIKey:string): Promise<{success: boolean, data?: ProfileInfo[], error?:string}> {
 
         try {
-            const APIKeys:string[] = JSON.parse(await fs.readFile(this.APIKeysPath, 'utf-8'));
+            const APIKeys:string[] = await READ_API_KEYS();
 
             if (APIKeys.includes(APIKey)){
-                const fileContents:string = await fs.readFile(this.databasePath, 'utf-8');
-                const data:Profile[] = await JSON.parse(fileContents);
 
-                return {success:true, data: data};
+                const data:ProfileInfo[] = (await READ_PROFILES_DATA()).map(({ id, name }) => ( { id, name } ));
+
+                return { success:true, data: data };
             }else {
                 throw new Error("Access denied");
             }
@@ -87,19 +117,19 @@ export class ProfileService {
     async getProfileInfo(userId:string,APIKey:string): Promise<{success: boolean; data?: ProfileInfo, error?:string}> {
 
         try {
-            const APIKeys:string[] = JSON.parse(await fs.readFile(this.APIKeysPath, 'utf-8'));
+            const APIKeys:string[] = await READ_API_KEYS();
 
             if (APIKeys.includes(APIKey)) {
-                const fileContents:string = await fs.readFile(this.databasePath, 'utf-8');
-                const data:Profile[] = await JSON.parse(fileContents);
 
-                const profile:Profile | undefined = data.find(item => item.id === userId);
+                const data:Profile[] = await READ_PROFILES_DATA();
+
+                const profile: Profile | null = data[BINARY_SEARCH(data, userId, 'id')] || null;
 
                 if (!profile) {
                     throw new Error("User has not been found");
                 }
 
-                const profileInfo:ProfileInfo = {
+                const profileInfo: ProfileInfo = {
                     id: profile.id,
                     name: profile.name,
                     email: profile.email
