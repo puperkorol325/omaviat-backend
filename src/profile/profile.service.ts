@@ -114,31 +114,25 @@ export class ProfileService {
         }
     }
 
-    async getProfileInfo(userId:string,APIKey:string): Promise<{success: boolean; data?: ProfileInfo, error?:string}> {
+    async getProfileInfo(userId:string): Promise<{success: boolean; data?: ProfileInfo, error?:string}> {
 
         try {
-            const APIKeys:string[] = await READ_API_KEYS();
 
-            if (APIKeys.includes(APIKey)) {
+            const data:Profile[] = await READ_PROFILES_DATA();
+            const profile: Profile | null = data[BINARY_SEARCH(data, userId, 'id')] || null;
 
-                const data:Profile[] = await READ_PROFILES_DATA();
-
-                const profile: Profile | null = data[BINARY_SEARCH(data, userId, 'id')] || null;
-
-                if (!profile) {
-                    throw new Error("User has not been found");
-                }
-
-                const profileInfo: ProfileInfo = {
-                    id: profile.id,
-                    name: profile.name,
-                    email: profile.email
-                }
-
-                return {success: true, data: profileInfo};
-            }else {
-                throw new Error("Access denied");
+            if (!profile) {
+                throw new Error("User has not been found");
             }
+
+            const profileInfo: ProfileInfo = {
+                id: profile.id,
+                name: profile.name,
+                email: profile.email,
+                ratedVideos: profile.ratedVideos
+            }
+
+            return {success: true, data: profileInfo};
 
         }catch (err) {
             return {success:false, error: err.message || "An unknown message occured"};

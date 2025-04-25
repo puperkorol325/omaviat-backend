@@ -8,6 +8,7 @@ import { READ_API_KEYS } from '../DATA_METHODS/READ_API_KEYS';
 import { READ_PROFILES_DATA } from '../DATA_METHODS/READ_PROFILES_DATA';
 import { READ_VIDEOS_DATA } from '../DATA_METHODS/READ_VIDEOS_DATA';
 import { BINARY_SEARCH } from '../DATA_METHODS/BINARY_SEARCH';
+import { randomInt } from 'crypto';
 
 
 export class VideoService {
@@ -44,37 +45,55 @@ export class VideoService {
         }
     }
 
-    async getVideo(videoID:string, APIKey:string): Promise<{success: boolean, data?: {video: Video, uploader: ProfileInfo}, error?:string}> {
+    async getVideo(videoID:string): Promise<{success: boolean, data?: Video, error?:string}> {
 
         try {
             
-            const APIKeys:string[] = await READ_API_KEYS();
 
-            if (APIKeys.includes(APIKey)) {
+            const videoData: Video[] = await READ_VIDEOS_DATA();
+            const profileData: Profile[] = await READ_PROFILES_DATA();
+            
+            const video: Video | undefined = videoData[BINARY_SEARCH(videoData, videoID, 'id')];
+            const uploader: ProfileInfo | undefined = profileData[BINARY_SEARCH(profileData, video?.uploaderId, 'id')];
 
-                const videoData: Video[] = await READ_VIDEOS_DATA();
-
-                const profileData: Profile[] = await READ_PROFILES_DATA();
-
-                const video: Video | undefined = videoData[BINARY_SEARCH(videoData, videoID, 'id')];
-                const uploader: ProfileInfo | undefined = profileData[BINARY_SEARCH(profileData, video?.uploaderId, 'id')];
-
-                if (video && uploader) {
-
-                    const uploaderInfo: ProfileInfo = {
-                        id: uploader?.id,
-                        name: uploader?.name
-                    }
-
-                    return {success: true, data: { video:video, uploader: uploaderInfo } }
-                }else {
-                    throw new Error("Video hasn't been found")
+            if (video && uploader) {
+                const uploaderInfo: ProfileInfo = {
+                    id: uploader?.id,
+                    name: uploader?.name
                 }
+                return {success: true, data: video }
             }else {
-                throw new Error("Access denied");
+                throw new Error("Video hasn't been found")
             }
         }catch (err) {
             return { success:false, error: err.message }
+        }
+    }
+
+    async getVideos(count: number): Promise<{ success: boolean, data?: Video[], error?: string}> {
+
+        try {
+
+            const videoData: Video[] = await READ_VIDEOS_DATA();
+
+            if (count <= count) {
+
+                const videosToReturn: number[] = new Array(videoData.length > count ? count : videoData.length).fill(0).map(item => randomInt(videoData.length));
+                const returnData: Video[] = [];
+
+                for (let i of videosToReturn) {
+                    returnData.push(videoData[i]);
+                }
+
+                console.log(videosToReturn);
+
+                return { success: true, data: returnData };
+            }else {
+                throw new Error("You can't get more than 20 videos in a row");
+            }
+        }catch (err) {
+
+            return {success: false, error: err.message};
         }
     }
 

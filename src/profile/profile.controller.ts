@@ -34,7 +34,7 @@ router.post('/auth', async (request: Request, response: Response) => {
 
     const encoder = new Hashes.SHA256;
 
-    const authData:AuthData = {
+    const authData: AuthData = {
         email: request.body.email,
         password: encoder.hex(request.body.password),
         APIKey: request.body.APIKey
@@ -43,7 +43,7 @@ router.post('/auth', async (request: Request, response: Response) => {
     const result = await profileService.authorization(authData);
 
     if (result.success) {
-        response.status(200).send("You have been succesfully authorized!")
+        response.status(200).send(JSON.stringify(result))
     }else if (result.success == false) {
         response.status(400).send(result.error);
     }
@@ -64,9 +64,7 @@ router.post('/info/all', async (request: Request, response: Response) => {
 
 router.get('/info/:userId', async (request: Request,response: Response) => {
 
-    const APIKey = request.body.APIKey;
-
-    const result = await profileService.getProfileInfo(request.params.userId, APIKey);
+    const result = await profileService.getProfileInfo(request.params.userId);
 
     if (result.success) {
         response.status(200).send(JSON.stringify(result.data));

@@ -30,9 +30,19 @@ async function main() {
     max: 100
   }));
 
-  app.use(cors({
-    origin: "http://127.0.0.1:5500"
-  }))
+  const corsOptions = {
+    origin: (origin, callback) => {
+      const blockedOrigin = "80.78.242.151/:1"; 
+      if (origin === blockedOrigin || !origin) {
+        callback(new Error('CORS not allowed for this origin'), false);
+      } else {
+        callback(null, true);
+      }
+    },
+    preflightContinue: true
+  };
+
+  app.use(cors(corsOptions));
 
   app.use(express.json());
 

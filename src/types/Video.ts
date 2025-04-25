@@ -1,3 +1,5 @@
+import { Comment } from './Comment';
+
 export type Video = {
     id: string,
     uploaderId: string,

@@ -35,15 +35,27 @@ router.post('/upload', async (request: Request,response: Response) => {
     }
 });
 
-router.get('/:videoID', async (request: Request,response: Response) => {
+router.get('/getPile/:count', async (request: Request, response: Response) => { 
 
-    const APIKey: string = request.body.APIKey;
-    const videoID: string = request.params.videoID;
+    const count: number = +request.params.count;
 
-    const result = await videoService.getVideo(videoID, APIKey);
+    const result = await videoService.getVideos(count);
 
     if (result.success) {
-        response.status(200).send(JSON.stringify(result.data));
+        response.set('Content-Length', Buffer.byteLength(JSON.stringify(result.data)).toString()).send(JSON.stringify(result.data));
+    }else {
+        response.status(400).send(result.error);
+    }
+});
+
+router.get('/:videoID', async (request: Request,response: Response) => {
+
+    const videoID: string = request.params.videoID;
+
+    const result = await videoService.getVideo(videoID);
+
+    if (result.success) {
+        response.set('Content-Length', Buffer.byteLength(JSON.stringify(result.data)).toString()).set('Content-type', 'application/json').status(200).send(JSON.stringify(result.data));
     }else {
         response.status(400).send(result.error);
     }
@@ -56,6 +68,7 @@ router.post('/:videoID/comment', async (request: Request, response: Response) =>
     const comment: Comment = {
         id: v4(),
         uploaderId: request.body.userId,
+        uploaderName: request.body.uploaderName,
         videoId: videoID,
         text: request.body.text
     };
